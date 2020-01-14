@@ -1,3 +1,8 @@
+try:
+	from PIL import Image
+except:
+	print("PIL is not installed. Do not use the -Image() methods on RasterCircles!")
+
 class Pixel:
 	def __init__(self, y, x, v):
 		self.y = int(y)
@@ -76,18 +81,43 @@ class RasterCircle:
 		self.radius = abs(int(r))
 		self.tolerance = int(t)
 		self.pixels = []
+		self.LUT = [ \
+			[False for a in range(2 * self.radius)] \
+			for b in range(2 * self.radius) \
+		]
 		self.generatePixels()
-		self.setASCII()
 	def __str__(self):
 	#	return str(tuple([self.radius, self.pixels]))
 		return "A raster-circle of radius " + str(self.radius) + "."
 	def __repr__(self):
 		return self.__str__()
+	def generateValueArray(self):
+		if not hasattr(self, "valArr"):
+			print("Generating image value array...")
+			valArr = []
+			for y in range(-self.radius, self.radius + 1):
+				for x in range(-self.radius, self.radius + 1):
+					if self.LUT[y][x]:
+						valArr.append(0x00)
+					else:
+						valArr.append(0xFF)
+			self.valArr = valArr
+			print("Done!")
+		return self.valArr
+	def getImage(self):
+		return Image.frombytes( \
+			"L", (self.radius * 2 + 1, self.radius * 2 + 1), \
+			bytes(self.generateValueArray()) \
+		)
+	def saveImage(self, filename):
+		self.getImage().save(filename, "png")
+
 	def setASCII(self, on = "[]", off = "  "):
 		self.ASCII = ""
 		for y in range(-self.radius, self.radius + 1):
 			for x in range(-self.radius, self.radius + 1):
-				if Pixel(y, x, True) in self.pixels:
+			#	if Pixel(y, x, True) in self.pixels:
+				if self.LUT[y][x]:
 					self.ASCII += on
 				else:
 					self.ASCII += off
@@ -98,27 +128,35 @@ class RasterCircle:
 	def setASCIIInverted(self):
 		self.setASCII("  ", "[]")
 	def printASCII(self):
+		if not hasattr(self, "ASCII"):
+			self.setASCII()
 		print(self.ASCII)
-	def writeOut(self, filename):
+	def writeOutASCII(self, filename):
 		file = open(filename, "w")
+		if not hasattr(self, "ASCII"):
+			self.setASCII()
 		file.write(self.ASCII)
 		file.close()
 		print("ASCII Art file written.")
 	def generatePixels(self):
 		p = Pixel(0, self.radius, True)
 		while p.x > 0:
+			self.LUT[p.y][p.x] = True
 			self.pixels.append(p)
 			p = p.findBest(p.getULNeighbors(), self.radius, self.tolerance)
 		#	print(p)
 		while p.y > 0:
+			self.LUT[p.y][p.x] = True
 			self.pixels.append(p)
 			p = p.findBest(p.getLLNeighbors(), self.radius, self.tolerance)
 		#	print(p)
 		while p.x < 0:
+			self.LUT[p.y][p.x] = True
 			self.pixels.append(p)
 			p = p.findBest(p.getLRNeighbors(), self.radius, self.tolerance)
 		#	print(p)
 		while p.y < 0:
+			self.LUT[p.y][p.x] = True
 			self.pixels.append(p)
 			p = p.findBest(p.getURNeighbors(), self.radius, self.tolerance)
 		#	print(p)
