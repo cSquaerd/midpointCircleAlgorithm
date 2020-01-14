@@ -77,13 +77,16 @@ class Pixel:
 		return neighbors[maxIndex]
 	
 class RasterCircle:
-	def __init__(self, r, t = 0):
+	def __init__(self, r, t = -1):
 		self.radius = abs(int(r))
-		self.tolerance = int(t)
+		if t == -1:
+			self.tolerance = int(self.radius ** 0.5)
+		else:
+			self.tolerance = t
 		self.pixels = []
 		self.LUT = [ \
-			[False for a in range(2 * self.radius)] \
-			for b in range(2 * self.radius) \
+			[False for a in range(2 * self.radius + 1)] \
+			for b in range(2 * self.radius + 1) \
 		]
 		self.generatePixels()
 	def __str__(self):
@@ -111,7 +114,6 @@ class RasterCircle:
 		)
 	def saveImage(self, filename):
 		self.getImage().save(filename, "png")
-
 	def setASCII(self, on = "[]", off = "  "):
 		self.ASCII = ""
 		for y in range(-self.radius, self.radius + 1):
