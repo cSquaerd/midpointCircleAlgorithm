@@ -93,6 +93,12 @@ class RasterCircle:
 					self.ASCII += off
 			self.ASCII += "\n"
 		print("ASCII Art representation set.")
+	def setASCIIMinimal(self):
+		self.setASCII("#", " ")
+	def setASCIIInverted(self):
+		self.setASCII("  ", "[]")
+	def printASCII(self):
+		print(self.ASCII)
 	def writeOut(self, filename):
 		file = open(filename, "w")
 		file.write(self.ASCII)
