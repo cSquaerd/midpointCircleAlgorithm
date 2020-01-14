@@ -58,13 +58,13 @@ class Pixel:
 			if n.x >= self.x:
 				LR.append(n)
 		return LR
-	def findBest(self, neighbors, radius):
+	def findBest(self, neighbors, radius, tolerance):
 		values = tuple(map(lambda p: (p.x * p.x) + (p.y * p.y), neighbors))
 		maxIndex = values.index(min(values))
 		neighbors[maxIndex].val = True
 		rSquared = radius ** 2
 		for i in range(len(neighbors)):
-			if values[i] <= rSquared and values[i] > values[maxIndex]:
+			if values[i] <= rSquared + tolerance and values[i] > values[maxIndex]:
 				neighbors[maxIndex].val = False
 				neighbors[i].val = True
 				maxIndex = i
@@ -72,40 +72,49 @@ class Pixel:
 		return neighbors[maxIndex]
 	
 class RasterCircle:
-	def __init__(self, r):
+	def __init__(self, r, t = 0):
 		self.radius = abs(int(r))
+		self.tolerance = int(t)
 		self.pixels = []
 		self.generatePixels()
+		self.setASCII()
 	def __str__(self):
 	#	return str(tuple([self.radius, self.pixels]))
 		return "A raster-circle of radius " + str(self.radius) + "."
 	def __repr__(self):
 		return self.__str__()
-	def printASCII(self):
+	def setASCII(self, on = "[]", off = "  "):
+		self.ASCII = ""
 		for y in range(-self.radius, self.radius + 1):
 			for x in range(-self.radius, self.radius + 1):
 				if Pixel(y, x, True) in self.pixels:
-					print("[]", end = "")
+					self.ASCII += on
 				else:
-					print("  ", end = "")
-			print()
+					self.ASCII += off
+			self.ASCII += "\n"
+		print("ASCII Art representation set.")
+	def writeOut(self, filename):
+		file = open(filename, "w")
+		file.write(self.ASCII)
+		file.close()
+		print("ASCII Art file written.")
 	def generatePixels(self):
 		p = Pixel(0, self.radius, True)
 		while p.x > 0:
 			self.pixels.append(p)
-			p = p.findBest(p.getULNeighbors(), self.radius)
+			p = p.findBest(p.getULNeighbors(), self.radius, self.tolerance)
 		#	print(p)
 		while p.y > 0:
 			self.pixels.append(p)
-			p = p.findBest(p.getLLNeighbors(), self.radius)
+			p = p.findBest(p.getLLNeighbors(), self.radius, self.tolerance)
 		#	print(p)
 		while p.x < 0:
 			self.pixels.append(p)
-			p = p.findBest(p.getLRNeighbors(), self.radius)
+			p = p.findBest(p.getLRNeighbors(), self.radius, self.tolerance)
 		#	print(p)
 		while p.y < 0:
 			self.pixels.append(p)
-			p = p.findBest(p.getURNeighbors(), self.radius)
+			p = p.findBest(p.getURNeighbors(), self.radius, self.tolerance)
 		#	print(p)
 		print("Pixels generated for radius " + str(self.radius) + ".")
 
