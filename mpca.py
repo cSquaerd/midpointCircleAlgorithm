@@ -1,8 +1,9 @@
+# Test for PIL
 try:
 	from PIL import Image
 except:
 	print("PIL is not installed. Do not use the -Image() methods on RasterCircles!")
-
+# Pixel Class
 class Pixel:
 	def __init__(self, y, x, v):
 		self.y = int(y)
@@ -12,6 +13,7 @@ class Pixel:
 		return ("{" if self.val else "(") + str(self.x) + ", " + str(self.y) + ("}" if self.val else ")")
 	def __repr__(self):
 		return self.__str__()
+	# Below was for in operator when imaging a circle, unneeded for now
 	def __eq__(self, other):
 		return self.x  == other.x and self.y == other.y and self.val == other.val
 	def getNeighbors(self):
@@ -63,6 +65,9 @@ class Pixel:
 			if n.x >= self.x:
 				LR.append(n)
 		return LR
+	# Given a list of neighbors, a circle radius, and a tolerance,
+	# Return a neighboring Pixel that best fits a circle of the given radius
+	# within range of the tolerance
 	def findBest(self, neighbors, radius, tolerance):
 		values = tuple(map(lambda p: (p.x * p.x) + (p.y * p.y), neighbors))
 		maxIndex = values.index(min(values))
@@ -73,9 +78,8 @@ class Pixel:
 				neighbors[maxIndex].val = False
 				neighbors[i].val = True
 				maxIndex = i
-		#print(values[maxIndex], end = "\t")
 		return neighbors[maxIndex]
-	
+# Rasterized Circle Class
 class RasterCircle:
 	def __init__(self, r, t = -1):
 		self.radius = abs(int(r))
@@ -84,6 +88,10 @@ class RasterCircle:
 		else:
 			self.tolerance = t
 		self.pixels = []
+		# LUT: LookUp Table
+		# This makes imaging fast instead of
+		# using the in operator in nested for-loops.
+		# See generateValueArray() and getImage()
 		self.LUT = [ \
 			[False for a in range(2 * self.radius + 1)] \
 			for b in range(2 * self.radius + 1) \
@@ -94,6 +102,8 @@ class RasterCircle:
 		return "A raster-circle of radius " + str(self.radius) + "."
 	def __repr__(self):
 		return self.__str__()
+	# Generate an array representative of the pixel values.
+	# Can be converted to a 8-bit grayscale image
 	def generateValueArray(self):
 		if not hasattr(self, "valArr"):
 			print("Generating image value array...")
@@ -107,13 +117,16 @@ class RasterCircle:
 			self.valArr = valArr
 			print("Done!")
 		return self.valArr
+	# Use the PIL Image module to create an 8-bit grayscale image of the circle
 	def getImage(self):
 		return Image.frombytes( \
 			"L", (self.radius * 2 + 1, self.radius * 2 + 1), \
 			bytes(self.generateValueArray()) \
 		)
+	# Wrapper for PIL.Image.save()
 	def saveImage(self, filename):
 		self.getImage().save(filename, "png")
+	# Set a string containing an ASCII-art representation of the circle
 	def setASCII(self, on = "[]", off = "  "):
 		self.ASCII = ""
 		for y in range(-self.radius, self.radius + 1):
@@ -125,6 +138,7 @@ class RasterCircle:
 					self.ASCII += off
 			self.ASCII += "\n"
 		print("ASCII Art representation set.")
+	# Wrappers for a few common ASCII styles
 	def setASCIIMinimal(self):
 		self.setASCII("#", " ")
 	def setASCIIInverted(self):
@@ -140,6 +154,7 @@ class RasterCircle:
 		file.write(self.ASCII)
 		file.close()
 		print("ASCII Art file written.")
+	# Called in __init__(), finds all pixels that best fit the circle
 	def generatePixels(self):
 		p = Pixel(0, self.radius, True)
 		while p.x > 0:
