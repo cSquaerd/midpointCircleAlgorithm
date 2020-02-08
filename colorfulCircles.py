@@ -1,12 +1,12 @@
 import mpca
 from PIL import Image
 
-def colorize(rcImage):
+def colorize(rcImage, offset = 0x00):
 	if not rcImage.mode == "HSV":
 		print("ColorSpace Error: Argument must be in HSV mode.")
 		return None
 	radius = rcImage.width // 2
-	color = radius % 0x100
+	color = (radius + offset) % 0x100
 	for x in range(rcImage.size[0]):
 		for y in range(rcImage.size[1]):
 			if rcImage.getpixel((x, y)) == (0, 0, 0):
@@ -44,5 +44,34 @@ def makeRainbowDisc(maxRadius):
 		disc = next
 	return disc
 
-
-
+def makeRainbowGif(maxRadius):
+	# Generate the discs
+	discs = []
+	for r in range(1, maxRadius + 1):
+		discs.append( \
+			mpca.RasterCircle(r).getImage() \
+		)
+	# See how many frames we need	
+	numFrames = min(maxRadius, 0x100)
+	frames = []
+	# Make the frames
+	for f in range(numFrames):
+		# Generate the discs for the current frame and compose them
+		tempFrame = alphize(colorize(discs[0].convert("HSV"), f).convert("RGBA"))
+		for d in discs[1:]:
+			nextFrame = alphize(colorize(d.convert("HSV"), f).convert("RGBA"))
+			nextFrame.alpha_composite( \
+				tempFrame, \
+				( \
+					(nextFrame.width - tempFrame.width) // 2, \
+					(nextFrame.height - tempFrame.height) // 2 \
+				) \
+			)
+			tempFrame = nextFrame
+		frames.append(tempFrame)
+		print("Frame", f, "completed.")
+	# Save the file
+	filename = str(input("Filename? (without extension) "))
+	if (type(filename) is str and len(filename) > 0):
+		frames[0].save(filename + ".gif", format = "GIF", append_images = frames[1:], save_all = True, duration = 100, loop = 0)
+	return frames
