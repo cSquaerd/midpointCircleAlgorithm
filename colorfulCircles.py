@@ -13,6 +13,15 @@ def colorize(rcImage, offset = 0x00):
 				rcImage.putpixel((x, y), (color, 0xFF, 0xFF))
 	return rcImage
 
+def colorizeQuick(rcImage, pixels, offset):
+	if not rcImage.mode == "HSV":
+		return None
+	radius = rcImage.width // 2
+	color = (radius + offset) % 0x100
+	for p in pixels:
+		rcImage.putpixel((p.x + radius, p.y + radius), (color, 0xFF, 0xFF))
+	return rcImage
+
 def alphize(rcImage):
 	if not rcImage.mode == "RGBA":
 		print("ColorSpace Error: Argument must be in RGBA mode.")
@@ -47,19 +56,22 @@ def makeRainbowDisc(maxRadius):
 def makeRainbowGif(maxRadius):
 	# Generate the discs
 	discs = []
+	pixelArrays = []
 	for r in range(1, maxRadius + 1):
-		discs.append( \
-			mpca.RasterCircle(r).getImage() \
-		)
+		d = mpca.RasterCircle(r)
+		discs.append(d.getImage())
+		pixelArrays.append(d.pixels)
+
 	# See how many frames we need	
 	numFrames = min(maxRadius, 0x100)
 	frames = []
 	# Make the frames
 	for f in range(numFrames):
 		# Generate the discs for the current frame and compose them
-		tempFrame = alphize(colorize(discs[0].convert("HSV"), f).convert("RGBA"))
+		tempFrame = alphize(colorizeQuick(discs[0].convert("HSV"), pixelArrays[0], f).convert("RGBA"))
+		i = 1
 		for d in discs[1:]:
-			nextFrame = alphize(colorize(d.convert("HSV"), f).convert("RGBA"))
+			nextFrame = alphize(colorizeQuick(d.convert("HSV"), pixelArrays[i], f).convert("RGBA"))
 			nextFrame.alpha_composite( \
 				tempFrame, \
 				( \
@@ -68,6 +80,7 @@ def makeRainbowGif(maxRadius):
 				) \
 			)
 			tempFrame = nextFrame
+			i += 1
 		frames.append(tempFrame)
 		print("Frame", f, "completed.")
 	# Save the file
