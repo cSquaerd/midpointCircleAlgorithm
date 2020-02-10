@@ -39,6 +39,17 @@ def alphize(rcImage, fromHSV = False):
 				rcImage.putpixel((x, y), (0x00, 0x00, 0x00, 0x00))
 	return rcImage
 
+# Used when turning frames into Palette mode
+def whiten(rcImage):
+	if not rcImage.mode == "RGB":
+		print("ColorSpace Error: Argument must be in RGB mode.")
+		return None
+	for x in range(rcImage.size[0]):
+		for y in range(rcImage.size[1]):
+			if rcImage.getpixel((x, y)) == (0x00, 0x00, 0x00):
+				rcImage.putpixel((x, y), (0xFF, 0xFF, 0xFF))
+	return rcImage
+
 # Naive algorithm based on alpha-composition
 def makeRainbowDisc(maxRadius):
 	if maxRadius < 1:
@@ -80,7 +91,7 @@ def makeRainbowDiscQuick(maxRadius):
 	return alphize(rainbow.convert("RGBA"))
 
 # Makes animated discs where the colors phase inward
-def makeRainbowGif(maxRadius, fullSpectrum = False, outward = False):
+def makeRainbowGif(maxRadius, fullSpectrum = False, outward = False, toPalette = False):
 	if maxRadius < 1:
 		print("Argument Error: value must be positive-non-zero.")
 		return None
@@ -112,7 +123,10 @@ def makeRainbowGif(maxRadius, fullSpectrum = False, outward = False):
 		)
 		for i in range(maxRadius - 2, -1, -1):
 			tempFrame = colorizeQuick(tempFrame, pixelArrays[i], f, i + 1)
-		frames.append(alphize(tempFrame.convert("RGBA")))
+		if toPalette:
+			frames.append(whiten(tempFrame.convert("RGB")).convert("P", palette = Image.ADAPTIVE))
+		else:
+			frames.append(alphize(tempFrame.convert("RGBA")))
 		print("Frame", f, "completed.")
 	# Save the file
 	if str(input("Save to file? [Y/n]")) in ('', 'y', 'Y'):
