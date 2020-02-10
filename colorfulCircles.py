@@ -13,22 +13,25 @@ def colorize(rcImage, offset = 0x00):
 				rcImage.putpixel((x, y), (color, 0xFF, 0xFF))
 	return rcImage
 
-def colorizeQuick(rcImage, pixels, offset):
+def colorizeQuick(rcImage, pixels, offset, radius):
 	if not rcImage.mode == "HSV":
 		return None
-	radius = rcImage.width // 2
+	maxRadius = rcImage.width // 2
 	color = (radius + offset) % 0x100
 	for p in pixels:
-		rcImage.putpixel((p.x + radius, p.y + radius), (color, 0xFF, 0xFF))
+		rcImage.putpixel((p.x + maxRadius, p.y + maxRadius), (color, 0xFF, 0xFF))
 	return rcImage
 
-def alphize(rcImage):
+def alphize(rcImage, fromHSV = False):
 	if not rcImage.mode == "RGBA":
 		print("ColorSpace Error: Argument must be in RGBA mode.")
 		return None
 	for x in range(rcImage.size[0]):
 		for y in range(rcImage.size[1]):
-			if rcImage.getpixel((x, y)) == (0xFF, 0xFF, 0xFF, 0xFF):
+			if fromHSV:
+				if rcImage.getpixel((x, y)) == (0x00, 0x00, 0x00, 0xFF):
+					rcImage.putpixel((x, y), (0x00, 0x00, 0x00, 0x00))
+			elif rcImage.getpixel((x, y)) == (0xFF, 0xFF, 0xFF, 0xFF):
 				rcImage.putpixel((x, y), (0x00, 0x00, 0x00, 0x00))
 	return rcImage
 
@@ -68,20 +71,14 @@ def makeRainbowGif(maxRadius):
 	# Make the frames
 	for f in range(numFrames):
 		# Generate the discs for the current frame and compose them
-		tempFrame = alphize(colorizeQuick(discs[0].convert("HSV"), pixelArrays[0], f).convert("RGBA"))
-		i = 1
-		for d in discs[1:]:
-			nextFrame = alphize(colorizeQuick(d.convert("HSV"), pixelArrays[i], f).convert("RGBA"))
-			nextFrame.alpha_composite( \
-				tempFrame, \
-				( \
-					(nextFrame.width - tempFrame.width) // 2, \
-					(nextFrame.height - tempFrame.height) // 2 \
-				) \
-			)
-			tempFrame = nextFrame
-			i += 1
-		frames.append(tempFrame)
+		tempFrame = colorizeQuick( \
+			discs[maxRadius - 1].convert("HSV"), \
+			pixelArrays[maxRadius - 1], \
+			f, maxRadius \
+		)
+		for i in range(maxRadius - 2, -1, -1):
+			tempFrame = colorizeQuick(tempFrame, pixelArrays[i], f, i + 1)
+		frames.append(alphize(tempFrame.convert("RGBA")))
 		print("Frame", f, "completed.")
 	# Save the file
 	filename = str(input("Filename? (without extension) "))
