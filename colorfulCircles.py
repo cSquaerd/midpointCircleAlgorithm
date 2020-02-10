@@ -1,6 +1,7 @@
 import mpca
 from PIL import Image
 
+# Naive approach to colorizing a circle.
 def colorize(rcImage, offset = 0x00):
 	if not rcImage.mode == "HSV":
 		print("ColorSpace Error: Argument must be in HSV mode.")
@@ -13,6 +14,8 @@ def colorize(rcImage, offset = 0x00):
 				rcImage.putpixel((x, y), (color, 0xFF, 0xFF))
 	return rcImage
 
+# Relies on list of pixels that make up the circle to quickly color them.
+# Can be used to insert a smaller circle into a larger image.
 def colorizeQuick(rcImage, pixels, offset, radius):
 	if not rcImage.mode == "HSV":
 		return None
@@ -22,6 +25,7 @@ def colorizeQuick(rcImage, pixels, offset, radius):
 		rcImage.putpixel((p.x + maxRadius, p.y + maxRadius), (color, 0xFF, 0xFF))
 	return rcImage
 
+# Naive but best approach to cutting out transparency for an image
 def alphize(rcImage, fromHSV = False):
 	if not rcImage.mode == "RGBA":
 		print("ColorSpace Error: Argument must be in RGBA mode.")
@@ -35,6 +39,7 @@ def alphize(rcImage, fromHSV = False):
 				rcImage.putpixel((x, y), (0x00, 0x00, 0x00, 0x00))
 	return rcImage
 
+# Naive algorithm based on alpha-composition
 def makeRainbowDisc(maxRadius):
 	if maxRadius < 1:
 		print("Argument Error: value must be positive and non-zero")
@@ -56,23 +61,52 @@ def makeRainbowDisc(maxRadius):
 		disc = next
 	return disc
 
-def makeRainbowGif(maxRadius):
-	# Generate the discs
-	discs = []
+# Better algorithm based on pixelArrays
+def makeRainbowDiscQuick(maxRadius):
+	if maxRadius < 1:
+		print("Argument Error: value must be positive-non-zero.")
+		return None
 	pixelArrays = []
 	for r in range(1, maxRadius + 1):
 		d = mpca.RasterCircle(r)
-		discs.append(d.getImage())
 		pixelArrays.append(d.pixels)
+	largestDisc = d.getImage()
+	rainbow = colorizeQuick( \
+		largestDisc.convert("HSV"), pixelArrays[maxRadius - 1], \
+		0, maxRadius \
+	)
+	for i in range(maxRadius - 2, -1, -1):
+		rainbow = colorizeQuick(rainbow, pixelArrays[i], 0, i + 1)
+	return alphize(rainbow.convert("RGBA"))
 
-	# See how many frames we need	
-	numFrames = min(maxRadius, 0x100)
+# Makes animated discs where the colors phase inward
+def makeRainbowGif(maxRadius, fullSpectrum = False, outward = False):
+	if maxRadius < 1:
+		print("Argument Error: value must be positive-non-zero.")
+		return None
+	# Generate the discs
+	pixelArrays = []
+	for r in range(1, maxRadius + 1):
+		d = mpca.RasterCircle(r)
+		pixelArrays.append(d.pixels)
+	largestDisc = d.getImage()
+	# See how many frames we need
+	if fullSpectrum:
+		numFrames = 0x100
+	else:
+		numFrames = min(maxRadius, 0x100)
 	frames = []
+	# Determine animation direction
+	if outward:
+		frameIterator = range(numFrames - 1, -1, -1)
+	else:
+		frameIterator = range(numFrames)
 	# Make the frames
-	for f in range(numFrames):
-		# Generate the discs for the current frame and compose them
+	for f in frameIterator:
+		# Start from the largest disc and use the pixelArrays to put in
+		# the colors on one image instead of alpha-composing
 		tempFrame = colorizeQuick( \
-			discs[maxRadius - 1].convert("HSV"), \
+			largestDisc.convert("HSV"), \
 			pixelArrays[maxRadius - 1], \
 			f, maxRadius \
 		)
@@ -81,7 +115,8 @@ def makeRainbowGif(maxRadius):
 		frames.append(alphize(tempFrame.convert("RGBA")))
 		print("Frame", f, "completed.")
 	# Save the file
-	filename = str(input("Filename? (without extension) "))
-	if (type(filename) is str and len(filename) > 0):
-		frames[0].save(filename + ".gif", format = "GIF", append_images = frames[1:], save_all = True, duration = 100, loop = 0)
+	if str(input("Save to file? [Y/n]")) in ('', 'y', 'Y'):
+		filename = str(input("Filename? (without extension) "))
+		if (type(filename) is str and len(filename) > 0):
+			frames[0].save(filename + ".gif", format = "GIF", append_images = frames[1:], save_all = True, duration = 100, loop = 0)
 	return frames
